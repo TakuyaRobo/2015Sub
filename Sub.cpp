@@ -12,9 +12,39 @@ using namespace std;
 using namespace RPDS3;
 using namespace RPMS;
 
+// ロータリーエンコーダ用割り込みピンの設定
+  // ローラー上
+  const int rot_pinA = 12;
+  const int rot_pinB = 25;
+  signed long int rot_countA = 0;
+  signed long int rot_countB = 0;
+  // ローラー下
+  const int rot_pinC = 20;
+  const int rot_pinD = 18;
+  signed long int rot_countC = 0;
+  signed long int rot_countD = 0;
+
+// 割り込み前のA相B相それぞれの値を保持
+  // ローラー上
+  bool oldPinA = false;
+  bool oldPinB = false;
+  // ローラー下
+  bool oldPinC = false;
+  bool oldPinD = false;
+
+// 速度を検出するための時間を計測する変数
+int time1 = 0;
+int time2 = 0;
+
+void rotary_changedPinUP(void);
+void rotary_changedPinDOWN(void);
+
 int main(void){   
   DualShock3 controller;
   MotorSerial ms;
+
+  int wiringPiSetup();
+  wiringPiSetupSys();
 
  /*-------GPIOピン割り当て-------*/
   //装填完了用LED
@@ -56,10 +86,23 @@ int main(void){
   pinMode(Out, OUTPUT);
   pinMode(LSIn, INPUT);
   pinMode(MobLED, OUTPUT);
+  pinMode(rot_pinA, INPUT);
+  pinMode(rot_pinB, INPUT);
+  pinMode(rot_pinC, INPUT);
+  pinMode(rot_pinD, INPUT);
 
   //プルダウン
   pullUpDnControl(In,PUD_DOWN);
   pullUpDnControl(LSIn, PUD_DOWN);
+  pullUpDnControl(rot_pinA, PUD_UP);
+  pullUpDnControl(rot_pinB, PUD_UP);
+  pullUpDnControl(rot_pinC, PUD_UP);
+  pullUpDnControl(rot_pinD, PUD_UP);
+
+  wiringPiISR(rot_pinA, INT_EDGE_BOTH, rotary_changedPinUP);
+  wiringPiISR(rot_pinB, INT_EDGE_BOTH, rotary_changedPinUP);
+  wiringPiISR(rot_pinC, INT_EDGE_BOTH, rotary_changedPinDOWN);
+  wiringPiISR(rot_pinD, INT_EDGE_BOTH, rotary_changedPinDOWN);
 
   digitalWrite(MobLED, 1);
 	
@@ -71,6 +114,9 @@ int main(void){
   //STARTボタンが押されるまでloopする	
 	UPDATELOOP(controller, !(controller.button(START) && controller.button(CROSS))){ 	
     
+    int time_diff;
+    time2 = micros();
+
     //可変抵抗の値の処理
     STICK = controller.stick(RIGHT_Y) + 128;
     KAITEN = 0.68 * STICK + 30;
@@ -171,6 +217,16 @@ int main(void){
         }
       }
     }
+    //ロータリーエンコーダ読み取り
+    time_diff = time2 - time1;
+    if(time_diff > 1000){
+      cout << rot_countA << " " << rot_countB << " " << rot_countC << " " << rot_countD << endl;
+      rot_countA = 0;
+      rot_countB = 0;
+      rot_countC = 0;
+      rot_countD = 0;
+      time1 = micros();
+    }
   }
   digitalWrite(SMotor1, 0);
   digitalWrite(SMotor2, 0);
@@ -179,4 +235,28 @@ int main(void){
   digitalWrite(MobLED, 0);
   
   return 0;
+}
+
+void rotary_changedPinUP(void){
+
+  bool sigPinA = digitalRead(rot_pinA);
+  bool sigPinB = digitalRead(rot_pinB);
+
+  if(sigPinA) rot_countA++;
+  if(sigPinB) rot_countB++;
+
+  oldPinA = sigPinA;
+  oldPinB = sigPinB;
+}
+
+void rotary_changedPinDOWN(void){
+
+  bool sigPinC = digitalRead(rot_pinC);
+  bool sigPinD = digitalRead(rot_pinD);
+
+  if(sigPinC) rot_countC++;
+  if(sigPinD) rot_countD++;
+
+  oldPinC = sigPinC;
+  oldPinD = sigPinD;
 }
