@@ -21,9 +21,9 @@
   
   UP:装填機構が上に上がります。
 
-  DOWN:装填機構が下に下がります。
+  RIGHT:装填機構が下に下がります。
   
-  RIGHT:押している間、Mainに信号を送ります。
+  RIGHT:押している間Mainに信号を送ります。
   
   SQUARE, TRIANGLE, CIRCLE:近距離を発射します。
   
